@@ -1,8 +1,9 @@
 
 
 class Node:
-    def __init__(self, pos, value):
+    def __init__(self, pos, value, coord: tuple[int, int]):
         self.pos = pos
+        self.coord = coord
         self.value = value
         self.adjacent = []
         self.hCost = 0
@@ -17,8 +18,8 @@ class Node:
         return line
     
     def in_position(self) -> bool:
-        if self.pos == 0 and self.value == 'b':
+        if self.value == 'b':
             return True
-        if self.pos == self.value:
+        if str(self.pos) == self.value:
             return True
         return False
