@@ -16,7 +16,7 @@ class Agent:
         self.startPos: str = world.find_blank()
         self.currPos: str = self.startPos
         self.total_moves = 0
-        self.stop = 10
+        self.stop = 500
         self.heuristic: Callable
         self.prev_cost = 0
 
@@ -44,6 +44,7 @@ class Agent:
             coord = world.find_coord(node.value)
             dist += np.abs(node.coord[0] - coord[0]) + np.abs(node.coord[1] - coord[1])
         return dist
+        
 
 class Best_First(Agent):
     def __init__(self, world):
@@ -62,7 +63,6 @@ class Best_First(Agent):
             #set move pos's value to b
             world_copies[node.pos].grid[node.pos].value = 'b'
             cost = self.calc_cost(world_copies[node.pos])
-            print(f"Path - {node.pos}, {cost}")
             if cost < best_move[1]:
                 best_move = (node, cost)
         
@@ -75,27 +75,58 @@ class Best_First(Agent):
         self.heuristic = self.misplaced_tiles
         while self.move() != 0 and self.total_moves < self.stop:
             self.total_moves += 1
-            print(f"Turn: {self.total_moves}")
-            print()
-            self.world.display()
-            print("----------------------")
+
+        return self.total_moves
         
     def solve_manhattan(self):
         self.heuristic = self.manhattan_dist
         while self.move() != 0 and self.total_moves < self.stop:
             self.total_moves += 1
-            print(f"Turn: {self.total_moves}")
-            print()
-            self.world.display()
-            print("----------------------")
+
 
 class A_star(Agent):
     def __init__(self, world):
         super().__init__(world)
+        self.pq = []
 
     def move(self) -> int:
-        pq = []
-        root = PathNode(None, copy.deepcopy(self.world), 0, self.heuristic(self.world))
-        heapq.heappush(pq, root)
+        # Tree node (parent, state/world, pos, g, h)
+        root = PathNode(None, copy.deepcopy(self.world), self.currPos, 0, self.heuristic(self.world), 0)
+        heapq.heappush(self.pq, root)
 
-        for node in root.children:
+        for node in self.world.grid[self.currPos].adjacent:
+            copy_world = copy.deepcopy(self.world)
+            copy_world.grid[self.currPos].value = copy_world.grid[node.pos].value
+            copy_world.grid[node.pos].value = 'b'
+            root.children.append(PathNode(root, copy_world, node.pos, root.f, self.heuristic(copy_world), 1))
+            heapq.heappush(self.pq, root.children[-1])
+
+        return self.pathing(heapq.heappop(self.pq))
+
+    def pathing(self, root) -> int:
+
+        for node in root.state_world.grid[root.agentPos].adjacent:
+            copy_world = copy.deepcopy(self.world)
+            copy_world.grid[self.currPos].value = copy_world.grid[node.pos].value
+            copy_world.grid[node.pos].value = 'b'
+            root.children.append(PathNode(root, copy_world, node.pos, root.f, self.heuristic(copy_world), root.turns + 1))
+            heapq.heappush(self.pq, root.children[-1])
+
+        self.total_moves += 1
+        if self.total_moves > self.stop:
+            return root.turns
+        
+        if root.h == 0:
+            return root.turns
+        
+        return self.pathing(heapq.heappop(self.pq))
+
+    def solve_misplaced(self) -> int:
+        self.heuristic = self.misplaced_tiles
+        return self.move()
+
+    def solve_manhattan(self) -> int:
+        self.heuristic = self.manhattan_dist
+        return self.move()
+        
+        
